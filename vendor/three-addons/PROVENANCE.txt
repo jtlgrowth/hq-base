@@ -1,0 +1,8 @@
+# Source: npm pack three@0.185.1 → examples/jsm (2026-08-18)
+# Layout preserved: GLTFLoader imports ../utils/* by relative path — never flatten.
+# Re-fetch: npm pack three@0.185.1 && tar -xzf three-0.185.1.tgz
+faabb4e8dfd9235ee4a9fd7c9a3d75f90f1689dbd4944bd6fd32117dacec5f93  controls/OrbitControls.js
+97642d720f16cc9a0c9844934198e4d0c023bea8e89576d0f7545d03b2d103d2  loaders/GLTFLoader.js
+dc5f4c5075a3a330b7e679da943343dd86a0f2d745422194b5287e48d7204197  renderers/CSS2DRenderer.js
+5c552223a9309883743b80538d6e9cdb45e3227f30d3ec56fb2c39b46e78d595  utils/BufferGeometryUtils.js
+b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f  utils/SkeletonUtils.js

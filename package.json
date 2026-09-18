@@ -1,0 +1,12 @@
+{
+  "name": "hq-base",
+  "private": true,
+  "type": "module",
+  "description": "Your AI team's office in 3D, on your own laptop.",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node test/run.mjs"
+  },
+  "engines": { "node": ">=20" },
+  "license": "MIT"
+}

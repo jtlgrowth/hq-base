@@ -1,0 +1,46 @@
+<!doctype html>
+<!-- HQ base: the same 3D office for everyone; you decorate it through accessories.json.
+     QUICK SETTINGS: colors and type -> css/tokens.css (--bg, --accent, --font-*);
+     3D colors -> js/settings.js (SETTINGS.scene); motion on/off -> SETTINGS.behavior.animations -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HQ</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%224%22 fill=%22%239fac62%22/%3E%3Crect x=%223%22 y=%225%22 width=%2210%22 height=%227%22 rx=%221%22 fill=%22%23f1e9da%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/app.css">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three-addons/" } }
+</script>
+</head>
+<body>
+<main id="stage" aria-label="Your office in 3D. Drag to turn it, scroll to zoom."></main>
+
+<header class="bar">
+  <div class="brand"><span id="company">HQ</span><i class="live" aria-hidden="true"></i></div>
+  <span class="pill" id="team-pill">loading the team</span>
+  <span class="pill" id="clock"></span>
+  <button class="pill btn" id="motion" type="button" aria-pressed="false">Pause motion</button>
+</header>
+
+<aside class="board" aria-labelledby="board-title">
+  <h2 id="board-title">Today</h2>
+  <ul id="tasks"></ul>
+  <p class="hint">From tasks.md</p>
+</aside>
+
+<section class="stats" aria-label="Office at a glance">
+  <div><b id="stat-working">0</b><span>working</span></div>
+  <div><b id="stat-idle">0</b><span>idle</span></div>
+  <div><b id="stat-tasks">0</b><span>open tasks</span></div>
+  <div><b id="stat-decor">0</b><span>accessories</span></div>
+</section>
+
+<p class="footer-hint">Tell Claude: <q>add a plant next to Maya</q>. It edits accessories.json and the office updates by itself.</p>
+<p class="note" id="unknown" role="status" hidden></p>
+<p class="note warn" id="offline" role="alert" hidden>Cannot reach the office server. In a terminal, in this folder, run: <code>node server.mjs</code></p>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
