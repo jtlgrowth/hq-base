@@ -1,6 +1,1 @@
-[
-  { "name": "Maya", "job": "Enquiry desk", "character": "b", "status": "working" },
-  { "name": "Nora", "job": "Answers the page", "character": "e", "status": "working" },
-  { "name": "Leo", "job": "Weekly numbers", "character": "c", "status": "working" },
-  { "name": "Ivy", "job": "Writes the SOPs", "character": "f", "status": "idle" }
-]
+[]

@@ -20,6 +20,9 @@ node server.mjs
 Open the address it prints, usually http://127.0.0.1:4747. Leave that terminal open;
 Ctrl+C stops it. It only listens on your own laptop.
 
+It starts empty on purpose: every office is the owner's own. To see a finished one first,
+copy the four files from `examples/sunrise-cafe/` over the ones here.
+
 ## Make it yours
 
 | File | What to change |

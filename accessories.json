@@ -1,9 +1,1 @@
-[
-  { "model": "plant", "near": "Maya" },
-  { "model": "lounge-set", "spot": "lounge" },
-  { "model": "coffee-corner", "spot": "pantry" },
-  { "model": "cat", "near": "Nora", "color": "#e08a3c" },
-  { "model": "logo" },
-  { "model": "bookshelf", "spot": "back-left" },
-  { "model": "plant-small", "near": "Leo" }
-]
+[]

@@ -3,6 +3,10 @@
 This folder is a 3D office that runs on this laptop. Everyone starts from the same base;
 the owner makes it theirs by changing four files. Keep it that way.
 
+It ships empty on purpose. Always write the owner's own answers into all four files, even
+when a file already has something in it. `examples/sunrise-cafe/` is a finished sample to
+look at, never a default to keep.
+
 ## Change only these
 
 | File | What it holds |

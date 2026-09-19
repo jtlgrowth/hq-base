@@ -452,6 +452,7 @@ function renderUI(state) {
   const open = state.tasks.filter((t) => !t.done).length;
   $("stat-tasks").textContent = String(open);
   $("team-pill").textContent = `${state.team.length} on the team`;
+  $("empty").hidden = state.team.length > 0;
   const list = $("tasks");
   list.replaceChildren();
   if (state.tasks.length === 0) {

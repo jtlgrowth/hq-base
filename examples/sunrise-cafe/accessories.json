@@ -1,0 +1,10 @@
+[
+  { "model": "lounge-set", "spot": "lounge" },
+  { "model": "plant", "near": "Maya" },
+  { "model": "coffee-corner", "spot": "pantry" },
+  { "model": "cat", "near": "Nora", "color": "#e08a3c" },
+  { "model": "logo" },
+  { "model": "bookshelf", "spot": "back-left" },
+  { "model": "plant-small", "near": "Leo" },
+  { "model": "reading-nook", "spot": "front-right" }
+]
