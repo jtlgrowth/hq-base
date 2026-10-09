@@ -135,6 +135,7 @@ button.tag[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 
   .btn { margin-left: 0; }
 }
 @media (max-width: 520px) {
+  .plate { white-space: normal; max-width: 44vw; }
   .plate span { display: none; }
   .plate b { font-size: 12px; }
 }
