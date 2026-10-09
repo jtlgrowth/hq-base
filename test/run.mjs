@@ -4,7 +4,7 @@
 // the catalog against ACCESSORIES.md, and the colour tokens.
 import { spawn } from 'node:child_process';
 import net from 'node:net';
-import { readFileSync, existsSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
+import { readFileSync, existsSync, mkdtempSync, cpSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -61,12 +61,31 @@ await withServer(dir, async (base, out) => {
   ok(broken.status === 200 && JSON.parse(broken.text).accessories.length === 0, 'a broken accessories.json does not take the office down');
 });
 
-// the /hire fallback: empty team.json + ../roster.json
+// the /hire fallback: empty team.json + ../roster.json, and the job cards beside it
 writeFileSync(join(dir, 'team.json'), '[]');
 writeFileSync(join(tmp, 'roster.json'), JSON.stringify({ agents: ['maya', 'nora'], routes: { maya: { label: 'Enquiry Desk' }, nora: { label: 'Page replies' } } }));
+mkdirSync(join(tmp, 'docs', 'team'), { recursive: true });
+mkdirSync(join(tmp, '.claude', 'agents'), { recursive: true });
+writeFileSync(join(tmp, 'docs', 'team', 'maya.md'), '# Maya: Enquiry Desk\n\n**Job:** every enquiry answered the same day.\n');
+writeFileSync(join(tmp, '.claude', 'agents', 'maya.md'), '---\nname: maya\n---\n');
+writeFileSync(join(tmp, 'secret.md'), 'not for the page');
 await withServer(dir, async (base) => {
   const st = JSON.parse((await get(base, '/api/state')).text);
   ok(st.team.length === 2 && st.team[0].name === 'Maya' && st.team[0].job === 'Enquiry Desk', 'team falls back to ../roster.json from /hire');
+  ok(st.team[0].id === 'maya', 'a roster teammate carries its id for the job card');
+  const card = JSON.parse((await get(base, '/api/team/maya')).text);
+  ok(card.roster === true && card.agent === '.claude/agents/maya.md' && card.doc.includes('every enquiry'), 'a job card reads docs/team, roster.json and the agent file', JSON.stringify(card));
+  const nora = JSON.parse((await get(base, '/api/team/nora')).text);
+  ok(nora.roster === true && nora.agent === null && nora.doc === null, 'a half-wired teammate shows what is missing', JSON.stringify(nora));
+  for (const bad of ['/api/team/..%2fsecret', '/api/team/..%2F..%2Fsecret', '/api/team/Maya', '/api/team/a.b', '/api/team/', '/api/team/maya%00']) {
+    const r = await get(base, bad);
+    ok(r.status === 404 && !r.text.includes('not for the page'), `a job card id cannot reach other files: ${bad}`, String(r.status));
+  }
+});
+writeFileSync(join(dir, 'team.json'), JSON.stringify([{ name: 'Maya', job: 'Enquiry desk' }]));
+await withServer(dir, async (base) => {
+  const st = JSON.parse((await get(base, '/api/state')).text);
+  ok(st.team[0].id === 'maya', 'a team.json teammate gets an id from its name');
 });
 
 // catalog: every id is documented, every file exists
@@ -78,6 +97,13 @@ const files = Object.values(CATALOG).flatMap((e) => (e.parts ? e.parts.map((p) =
 const missingFiles = files.filter((f) => !existsSync(join(ROOT, 'models', f)));
 ok(missingFiles.length === 0, 'every catalog model file exists', missingFiles.join(', '));
 ok(SPOTS.every((s) => doc.includes('`' + s + '`')), 'every spot name is documented');
+const { LOOKS } = await import(pathToFileURL(join(ROOT, 'js', 'catalog.js')).href);
+const looks = Object.entries(LOOKS).flatMap(([k, opts]) => [k, ...opts]);
+ok(looks.every((v) => doc.includes('`' + v + '`')), 'every look option is documented', looks.filter((v) => !doc.includes('`' + v + '`')).join(', '));
+const props = readFileSync(join(ROOT, 'js', 'props.js'), 'utf8');
+const drawn = Object.values(CATALOG).map((e) => e.procedural).filter((p) => p && !['cat', 'logo'].includes(p));
+const undrawn = drawn.filter((p) => !new RegExp(`export function ${p}\\(`).test(props));
+ok(undrawn.length === 0, 'every drawn-in-code accessory has its function in js/props.js', undrawn.join(', '));
 
 // tokens: the colours the scene and the page share must match
 const css = readFileSync(join(ROOT, 'css', 'tokens.css'), 'utf8');

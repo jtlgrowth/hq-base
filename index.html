@@ -37,7 +37,20 @@
   <div><b id="stat-decor">0</b><span>accessories</span></div>
 </section>
 
-<p class="footer-hint">Tell Claude: <q>add a plant next to Maya</q>. It edits accessories.json and the office updates by itself.</p>
+<aside class="card" id="card" aria-labelledby="card-name" hidden>
+  <button class="card-x" id="card-close" type="button" aria-label="Close the job card">&times;</button>
+  <p class="card-kicker" id="card-status"></p>
+  <h2 id="card-name"></h2>
+  <p class="card-job" id="card-job"></p>
+  <ul class="wired" id="card-wired" aria-label="How this teammate is wired"></ul>
+  <h3>Give it work</h3>
+  <pre class="brief" id="card-brief"></pre>
+  <button class="pill btn copy" id="card-copy" type="button">Copy the brief</button>
+  <h3 class="card-sub">Its job, from /hire</h3>
+  <dl class="card-fields" id="card-fields"></dl>
+</aside>
+
+<p class="footer-hint">Click a name to open their job card. Tell Claude: <q>add a plant next to Maya</q> and the office updates by itself.</p>
 <p class="note" id="unknown" role="status" hidden></p>
 <p class="note" id="empty" role="status" hidden>No team yet. Tell Claude who is on your team (or run /hire first) and each one gets a desk here.</p>
 <p class="note warn" id="offline" role="alert" hidden>Cannot reach the office server. In a terminal, in this folder, run: <code>node server.mjs</code></p>

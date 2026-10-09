@@ -11,7 +11,7 @@ look at, never a default to keep.
 
 | File | What it holds |
 |---|---|
-| `company.json` | `name` and a one-line `tagline` |
+| `company.json` | `name`, a one-line `tagline`, and optionally the room's `look` (walls, floor, outside; options in `ACCESSORIES.md`) |
 | `team.json` | one entry per desk: `name`, `job`, `character` (a letter `a` to `h`), `status` (`working`, `idle`, `waiting`, `away`). Leave it as `[]` to use `../roster.json` from /hire instead |
 | `accessories.json` | everything added to the office. Every id is in `ACCESSORIES.md` |
 | `tasks.md` | the board: lines like `- [ ] Send the quote` and `- [x] Done thing` (up to 8 show) |
@@ -34,6 +34,17 @@ and `js/settings.js` hold them, and they must stay in step (`npm test` checks).
    (`lounge`, `pantry`, `entrance`, `hub`, `back-left`, `back-right`, `front-left`,
    `front-right`) over `x`/`z` numbers.
 3. Keep the file valid JSON. Tell them it will appear in a few seconds, no restart needed.
+
+## When the owner says "change the walls" (or the floor, or what is outside)
+
+Set `look` in `company.json`, using only the options in `ACCESSORIES.md` under "The room itself".
+
+## The job cards
+
+Clicking a name opens that teammate's job card: `../docs/team/<id>.md` from /hire, and
+whether `../roster.json` and the agent file (`../.claude/agents/<id>.md` or
+`../.codex/agents/<id>.toml`) have them. A missing check means the hire is not finished:
+run /hire in the desk folder, never write those files by hand from here.
 
 ## Running it
 

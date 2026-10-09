@@ -7,13 +7,14 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import * as SkeletonUtils from "three/addons/utils/SkeletonUtils.js";
 import { SETTINGS } from "./settings.js";
-import { CATALOG, SPOTS } from "./catalog.js";
+import { CATALOG, SPOTS, LOOKS } from "./catalog.js";
+import * as PROPS from "./props.js";
 
 const C = SETTINGS.scene;
 const POD_X = 2.45, POD_Z = 2.45, COLS = 3, LOUNGE_W = 3.5, MARGIN = 0.7, FRONT = 2.0;
 const KIT = 1.35;                    // desks, people and accessories drawn a bit chunky
 const PERSON_HEIGHT = 0.74;          // kit units, bind pose; a desk top is 0.384, a wall 1.29
-const WALL_H = 1.0;
+const WALL_H = 1.0, WALL_H_SLAT = 1.5;
 const PITCH = (35 * Math.PI) / 180;  // classic isometric: 45° yaw, 55° up
 const YAW = Math.PI / 4;
 
@@ -126,32 +127,66 @@ const building = new THREE.Group();
 scene.add(building);
 const lambert = (color) => new THREE.MeshLambertMaterial({ color });
 
+// company.json "look": walls, floor and what is outside. Unknown values fall back to the first.
+function lookOf(company) {
+  const look = company && typeof company.look === "object" && company.look ? company.look : {};
+  return Object.fromEntries(Object.entries(LOOKS).map(([k, opts]) => [k, opts.includes(look[k]) ? look[k] : opts[0]]));
+}
+
+// vertical light-oak slats, drawn once onto a canvas and repeated along each wall
+let slatCanvas = null;
+function slatTexture(repeat) {
+  if (!slatCanvas) {
+    slatCanvas = document.createElement("canvas");
+    slatCanvas.width = 64; slatCanvas.height = 4;
+    const x = slatCanvas.getContext("2d");
+    x.fillStyle = "#" + C.slat.toString(16).padStart(6, "0"); x.fillRect(0, 0, 64, 4);
+    x.fillStyle = "#" + C.slatLine.toString(16).padStart(6, "0");
+    for (let i = 0; i < 64; i += 8) x.fillRect(i, 0, 1, 4);
+    x.fillStyle = "rgba(255,255,255,.18)";
+    for (let i = 3; i < 64; i += 8) x.fillRect(i, 0, 2, 4);
+  }
+  const t = new THREE.CanvasTexture(slatCanvas);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = THREE.RepeatWrapping;
+  t.repeat.set(repeat, 1);
+  return t;
+}
+
 function buildRoom(L, company) {
   disposeGroup(building);
   const { W, D } = L;
-  const side = lambert(C.slabSide), top = lambert(C.floor);
+  const look = lookOf(company);
+  const island = look.outside === "island";
+  scene.background.set(island ? C.sea : C.lawn);
+  lawn.material.color.set(island ? C.sea : C.lawn);
+  lawn.position.y = island ? -0.47 : -0.36;
+  const side = lambert(C.slabSide), top = lambert(look.floor === "stone" ? C.stone : C.floor);
   const slab = new THREE.Mesh(new THREE.BoxGeometry(W, 0.35, D), [side, side, top, side, side, side]);
   slab.position.y = -0.175;
   slab.receiveShadow = true;
   building.add(slab);
 
-  // floor planks: faint lines along x
+  // floor: planks (faint lines along x) or stone tiles (a grid)
   const pts = [];
   for (let z = -D / 2 + 0.5; z < D / 2; z += 0.5) pts.push(-W / 2, 0.002, z, W / 2, 0.002, z);
+  if (look.floor === "stone") for (let x = -W / 2 + 0.5; x < W / 2; x += 0.5) pts.push(x, 0.002, -D / 2, x, 0.002, D / 2);
   const planks = new THREE.LineSegments(
     new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(pts, 3)),
-    new THREE.LineBasicMaterial({ color: C.floorLine, transparent: true, opacity: 0.7 }),
+    new THREE.LineBasicMaterial({ color: look.floor === "stone" ? C.stoneLine : C.floorLine, transparent: true, opacity: 0.7 }),
   );
   building.add(planks);
 
   // two back walls with a light trim, cut away at the front so you can see in
-  const wallMat = lambert(C.wall), trimMat = lambert(C.wallTrim);
+  const slats = look.walls === "wood-slat";
+  const wallH = slats ? WALL_H_SLAT : WALL_H;
+  const trimMat = lambert(C.wallTrim);
   const wall = (w, d, x, z) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, WALL_H, d), wallMat);
-    m.position.set(x, WALL_H / 2, z);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, d), slats ? new THREE.MeshLambertMaterial({ map: slatTexture(Math.max(w, d) * 7) }) : lambert(C.wall));
+    m.position.set(x, wallH / 2, z);
     m.castShadow = m.receiveShadow = true;
     const t = new THREE.Mesh(new THREE.BoxGeometry(w + 0.04, 0.06, d + 0.04), trimMat);
-    t.position.set(x, WALL_H + 0.03, z);
+    t.position.set(x, wallH + 0.03, z);
     building.add(m, t);
   };
   wall(W, 0.14, 0, -D / 2 + 0.07);
@@ -180,6 +215,19 @@ function buildRoom(L, company) {
   hubRug.receiveShadow = true;
   building.add(hubRug);
 
+  // an island: sand under the building and a ring of shallow water around it
+  if (island) {
+    const disc = (grow, color, y) => {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.04, 0.12, 28), lambert(color));
+      m.scale.set(W / 2 + grow, 1, D / 2 + grow + 2.2);
+      m.position.set(0, y, 1.1);
+      m.receiveShadow = true;
+      building.add(m);
+    };
+    disc(3.2, C.shallows, -0.43);
+    disc(2.2, C.sand, -0.38);
+  }
+
   // stepping stones from the entrance onto the lawn
   for (let i = 0; i < 4; i++) {
     const s = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.34, 0.06, 20), lambert(0xd9d2c2));
@@ -192,7 +240,15 @@ function buildRoom(L, company) {
   const leafA = lambert(0x6f8f3e), leafB = lambert(0x86a24a), bark = lambert(0x7a5230);
   const trees = [[-W / 2 - 1.6, -D / 2 + 0.8, 1.1], [-W / 2 - 1.2, D / 2 - 0.4, 0.8], [W / 2 + 1.4, -D / 2 - 1.2, 1.0],
     [-W / 2 + 1.5, -D / 2 - 1.5, 0.9], [W / 2 + 1.8, D / 2 + 0.6, 0.75], [W / 2 * 0.2, -D / 2 - 1.8, 0.85]];
-  trees.forEach(([x, z, s], i) => {
+  if (island) {
+    trees.forEach(([x, z, s], i) => {
+      const p = PROPS.palm({ potted: false });
+      p.scale.setScalar(2.4 * s);
+      p.position.set(x, -0.36, z);
+      p.rotation.y = i * 1.7;
+      building.add(p);
+    });
+  } else trees.forEach(([x, z, s], i) => {
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.07 * s, 0.1 * s, 0.5 * s, 8), bark);
     trunk.position.set(x, -0.36 + 0.25 * s, z);
     const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(0.55 * s, 0), i % 2 ? leafA : leafB);
@@ -229,15 +285,20 @@ const STATUS = {
   away: { dot: "#aab2b6", word: "away", clip: null },
 };
 
-function label(name, job, status) {
-  const el = document.createElement("div");
+function label(member, status) {
+  const el = document.createElement("button");
+  el.type = "button";
   el.className = "tag";
   const st = STATUS[status] || STATUS.working;
   el.innerHTML = `<i></i><b></b><span></span>`;
   el.querySelector("i").style.background = st.dot;
-  el.querySelector("b").textContent = name;
-  el.querySelector("span").textContent = job;
-  el.title = `${name}: ${st.word}`;
+  el.querySelector("b").textContent = member.name;
+  el.querySelector("span").textContent = member.job;
+  el.title = `${member.name}: ${st.word}. Click for the job card.`;
+  el.setAttribute("aria-expanded", "false");
+  el.dataset.id = member.id || "";
+  el.addEventListener("pointerdown", (e) => e.stopPropagation()); // a click, not the start of a turn
+  el.addEventListener("click", () => openCard({ ...member, status }, el));
   return new CSS2DObject(el);
 }
 
@@ -288,7 +349,7 @@ async function buildTeam(L, members) {
       else { body.position.set(0.72, 0, 0.35); body.rotation.y = Math.PI * 0.85; }
       pod.add(body);
     }
-    const tag = label(m.name || `Teammate ${i + 1}`, m.job || "AI employee", status);
+    const tag = label({ id: m.id, name: m.name || `Teammate ${i + 1}`, job: m.job || "AI employee" }, status);
     tag.position.set(0, 2.05, -0.45); // floats above the head, never on it
     pod.add(tag);
     team.add(pod);
@@ -328,6 +389,9 @@ function logoPlane(company, logoFile) {
   if (logoFile) {
     new THREE.TextureLoader().load(logoFile + "?v=" + Date.now(), (t) => {
       t.colorSpace = THREE.SRGBColorSpace;
+      // fit the logo inside the frame without stretching it
+      const a = t.image.width / Math.max(1, t.image.height), frameA = 1.96 / 0.92;
+      face.scale.set(Math.min(1, a / frameA), Math.min(1, frameA / a), 1);
       face.material = new THREE.MeshBasicMaterial({ map: t, transparent: true });
       requestRender();
     });
@@ -370,6 +434,29 @@ function position(item, L, members, counters) {
   return { x: s.x + dx, z: s.z + dz };
 }
 
+const validColor = (c) => (typeof c === "string" && /^#[0-9a-f]{3,8}$/i.test(c) ? c : null);
+
+// Things that hang on the back wall (the logo, display shelves) line up along it by
+// themselves: the logo in the middle, shelves alternating left and right of it.
+function wallSlots(items, L) {
+  const slots = new Map();
+  const logoAt = items.findIndex((it) => CATALOG[it.model]?.procedural === "logo" && typeof it.x !== "number");
+  const widthOf = (it) => (CATALOG[it.model]?.procedural === "logo" ? 2.1 : PROPS.SHELF.w * KIT * Math.max(0.2, Math.min(4, Number(it.scale) || 1)));
+  let left = 0, right = 0, first = true;
+  if (logoAt >= 0) { slots.set(logoAt, 0); left = right = 2.1 / 2 + 0.3; first = false; }
+  let goLeft = true;
+  items.forEach((it, i) => {
+    if (i === logoAt || !CATALOG[it.model]?.wall || typeof it.x === "number") return;
+    const w = widthOf(it);
+    if (first) { slots.set(i, 0); left = right = w / 2 + 0.3; first = false; return; }
+    if (goLeft) { slots.set(i, -(left + w / 2)); left += w + 0.3; }
+    else { slots.set(i, right + w / 2); right += w + 0.3; }
+    goLeft = !goLeft;
+  });
+  for (const [i, x] of slots) slots.set(i, Math.max(-L.W / 2 + 0.2 + widthOf(items[i]) / 2, Math.min(L.W / 2 - 0.2 - widthOf(items[i]) / 2, x)));
+  return slots;
+}
+
 const clampTo = (p, L) => ({
   x: Math.max(-L.W / 2 + 0.35, Math.min(L.W / 2 - 0.35, p.x)),
   z: Math.max(-L.D / 2 + 0.35, Math.min(L.D / 2 - 0.35, p.z)),
@@ -382,6 +469,8 @@ async function makeAccessory(item, company, logoFile) {
   if (!entry) return null;
   if (entry.procedural === "cat") return cat(item.color);
   if (entry.procedural === "logo") return logoPlane(company, logoFile);
+  if (entry.procedural === "suitcase") return shadows(PROPS.suitcase(validColor(item.color) || undefined));
+  if (entry.procedural && typeof PROPS[entry.procedural] === "function") return shadows(PROPS[entry.procedural]());
   if (entry.parts) {
     const g = new THREE.Group();
     const pieces = await Promise.all(entry.parts.map((pt) => prop(pt.file)));
@@ -402,8 +491,10 @@ async function syncDecor(state, L, force) {
   const counters = new Map();
   const unknown = [];
   const wanted = new Map();
-  state.accessories.forEach((item, i) => {
-    if (!item || typeof item !== "object") return;
+  const items = state.accessories.filter((item) => item && typeof item === "object");
+  const slots = wallSlots(items, L);
+  items.forEach((item, i) => {
+    item = { ...item, _slot: slots.get(i) };
     wanted.set(i + ":" + JSON.stringify(item), item);
   });
   for (const [k, obj] of placed) {
@@ -414,13 +505,18 @@ async function syncDecor(state, L, force) {
     const id = String(item.model || "");
     const isCustom = id.startsWith("custom/") && state.custom.includes(id.slice(7));
     if (!CATALOG[id] && !isCustom) { unknown.push(id || "(no model)"); continue; }
-    if (placed.has(k)) { position(item, L, state.team, counters); continue; }
+    const onWall = CATALOG[id]?.wall || CATALOG[id]?.procedural === "logo";
+    if (placed.has(k)) { if (!onWall) position(item, L, state.team, counters); continue; }
     let obj;
     try { obj = await makeAccessory(item, state.company, state.logo); } catch (e) { console.warn("could not load", id, e); }
     if (!obj) { unknown.push(id); continue; }
     if (CATALOG[id]?.procedural === "logo") {
-      const x = typeof item.x === "number" ? item.x : 0;
-      obj.position.set(Math.max(-L.W / 2 + 1.3, Math.min(L.W / 2 - 1.3, x)), 0.62, -L.D / 2 + 0.16);
+      const x = typeof item.x === "number" ? item.x : item._slot ?? 0;
+      obj.position.set(Math.max(-L.W / 2 + 1.3, Math.min(L.W / 2 - 1.3, x)), lookOf(state.company).walls === "wood-slat" ? 0.85 : 0.62, -L.D / 2 + 0.16);
+    } else if (CATALOG[id]?.wall) {
+      const sc = Math.max(0.2, Math.min(4, Number(item.scale) || 1)) * KIT;
+      const x = typeof item.x === "number" ? item.x : item._slot ?? 0;
+      obj.position.set(Math.max(-L.W / 2 + 0.2, Math.min(L.W / 2 - 0.2, x)), 0, -L.D / 2 + 0.14 + (PROPS.SHELF.d / 2) * sc + 0.01);
     } else {
       const p = clampTo(position(item, L, state.team, counters), L);
       obj.position.x = p.x; obj.position.z = p.z;
@@ -468,6 +564,81 @@ function renderUI(state) {
     list.append(li);
   }
 }
+
+// ------------------------------------------------------------------ job card ----
+// What /hire wrote about a teammate (docs/team/<id>.md), whether they are wired in,
+// and a brief to paste into Claude Code, in the five parts from the workshop.
+const FIELDS = ["Job", "Comes in", "Goes out", "Hand it work when", "Boundaries, never, even when asked", "When it is stuck", "Checked by", "First shift", "Done means"];
+let cardFor = null;
+function fieldsOf(doc) {
+  const out = {};
+  for (const line of String(doc || "").split(/\r?\n/)) {
+    const m = line.match(/^\*\*(.+?):\*\*\s*(.+)$/);
+    if (m) out[m[1].trim()] = m[2].trim();
+  }
+  return out;
+}
+function li(ok, html) {
+  const el = document.createElement("li");
+  if (!ok) el.className = "no";
+  el.innerHTML = `<span>${html}</span>`;
+  return el;
+}
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+async function openCard(member, tagEl) {
+  cardFor = member.id || member.name;
+  document.querySelectorAll("button.tag[aria-expanded=true]").forEach((b) => b.setAttribute("aria-expanded", "false"));
+  tagEl?.setAttribute("aria-expanded", "true");
+  const st = STATUS[member.status] || STATUS.working;
+  $("card-status").innerHTML = `<i style="background:${st.dot}"></i>${esc(st.word)}`;
+  $("card-name").textContent = member.name;
+  $("card-job").textContent = member.job;
+  $("card-wired").replaceChildren(li(true, "Loading the job card"));
+  $("card-fields").replaceChildren();
+  $("card-brief").textContent = "";
+  $("card").hidden = false;
+  let info = { roster: false, agent: null, doc: null };
+  try {
+    if (member.id) { const r = await fetch("/api/team/" + encodeURIComponent(member.id), { cache: "no-store" }); if (r.ok) info = await r.json(); }
+  } catch { /* server gone: the offline note says so */ }
+  if (cardFor !== (member.id || member.name)) return; // another name was clicked meanwhile
+  const id = esc(member.id || "name");
+  $("card-wired").replaceChildren(
+    li(info.roster, info.roster ? "Listed in <code>roster.json</code>" : "Not in <code>roster.json</code> (it sits here from team.json)"),
+    li(Boolean(info.agent), info.agent ? `Agent file <code>${esc(info.agent)}</code>` : `No agent file. Run <code>/hire</code> in your desk folder.`),
+    li(Boolean(info.doc), info.doc ? `Job card <code>docs/team/${id}.md</code>` : `No job card at <code>docs/team/${id}.md</code>`),
+  );
+  const f = fieldsOf(info.doc);
+  for (const key of FIELDS) {
+    if (!f[key]) continue;
+    const dt = document.createElement("dt"), dd = document.createElement("dd");
+    dt.textContent = key.startsWith("Boundaries") ? "Never" : key;
+    dd.textContent = f[key];
+    $("card-fields").append(dt, dd);
+  }
+  const never = f["Boundaries, never, even when asked"];
+  $("card-brief").textContent = [
+    `Use ${member.name} for this task.`,
+    "Goal: [what done looks like]",
+    "Input: [what to read]",
+    "Output: [format and filename]",
+    "Check: [how I will know it is right]",
+    `Never: ${never ? never.replace(/\.$/, "") : "[what it must not do]"}`,
+  ].join("\n");
+}
+function closeCard() {
+  $("card").hidden = true;
+  cardFor = null;
+  document.querySelectorAll("button.tag[aria-expanded=true]").forEach((b) => { b.setAttribute("aria-expanded", "false"); });
+}
+$("card-close").addEventListener("click", closeCard);
+addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("card").hidden) closeCard(); });
+$("card-copy").addEventListener("click", async () => {
+  const b = $("card-copy");
+  try { await navigator.clipboard.writeText($("card-brief").textContent); b.textContent = "Copied"; }
+  catch { getSelection().selectAllChildren($("card-brief")); b.textContent = "Selected: press Ctrl+C"; }
+  setTimeout(() => { b.textContent = "Copy the brief"; }, 1800);
+});
 
 // ---------------------------------------------------------------------- state ----
 let last = { company: "", team: "", decor: "", ui: "" };
@@ -623,4 +794,7 @@ poll();
 setInterval(poll, Math.max(1, SETTINGS.behavior.pollSeconds) * 1000);
 
 // For tests and curious people: window.hq.state() in the console.
-window.hq = { scene, camera, controls, render: () => requestRender(), layout: () => layout, placed: () => placed.size, desks: () => team.children.length };
+window.hq = {
+  scene, camera, controls, render: () => requestRender(), layout: () => layout, placed: () => placed.size, desks: () => team.children.length,
+  open: (name) => document.querySelector(`button.tag[title^="${CSS.escape(name)}:"]`)?.click(),
+};

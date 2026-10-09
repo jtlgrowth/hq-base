@@ -27,10 +27,13 @@ copy the four files from `examples/sunrise-cafe/` over the ones here.
 
 | File | What to change |
 |---|---|
-| `company.json` | your company name and one-line tagline |
+| `company.json` | your company name, one-line tagline, and the room's `look` (walls, floor, outside) |
 | `team.json` | who sits where (or leave `[]` and it reads `../roster.json` from the /hire skill) |
 | `accessories.json` | what is in the office; every option is in [ACCESSORIES.md](ACCESSORIES.md) |
 | `tasks.md` | the board on the right, one `- [ ] task` per line |
+
+Click a name to open that teammate's job card: what /hire wrote about them, whether they
+are wired in (roster.json, the agent file, the job card), and a brief ready to paste.
 
 The page picks up changes within a few seconds, no restart. Drag to turn the office,
 scroll to zoom. "Pause motion" stops the animation, and it stays off if your system asks

@@ -19,5 +19,13 @@ export const SETTINGS = {
     accent: 0xb8563c,
     sun: 0xffe6bf,
     bounce: 0xb08a5a,
+    // the "look" options in company.json (see ACCESSORIES.md)
+    slat: 0xd8ba8e,      // walls: "wood-slat"
+    slatLine: 0xa98a5e,
+    stone: 0xe9e4dc,     // floor: "stone"
+    stoneLine: 0xd6cfc3,
+    sea: 0x5cc0d8,       // outside: "island"
+    shallows: 0x9fe2ea,
+    sand: 0xf0dcab,
   },
 };

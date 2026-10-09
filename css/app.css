@@ -74,12 +74,48 @@ body {
 .note.warn { border-left-color: var(--danger); }
 .note code { font-family: var(--font-mono); background: color-mix(in srgb, var(--fg) 8%, transparent); padding: 1px 6px; border-radius: 6px; }
 
+/* the job card: opens when a name is clicked */
+.card {
+  position: fixed; top: 84px; left: var(--space-4); width: min(360px, calc(100vw - 32px)); max-height: calc(100vh - 230px); overflow: auto;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--space-4) var(--space-4) var(--space-4);
+  box-shadow: var(--shadow); z-index: 5;
+}
+.card-x {
+  position: absolute; top: var(--space-2); right: var(--space-2); width: 44px; height: 44px; border: 0; border-radius: var(--radius-pill);
+  background: transparent; color: var(--fg); font: 400 26px/1 var(--font-body); cursor: pointer;
+}
+.card-x:hover { background: color-mix(in srgb, var(--fg) 8%, transparent); }
+.card-x:focus-visible, .copy:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.card-kicker { font: 700 var(--text-xs)/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 7px; }
+.card-kicker i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.card h2 { font: 800 var(--text-xl)/1.15 var(--font-display); margin: var(--space-2) 44px 2px 0; }
+.card-job { color: var(--muted); font-size: var(--text-sm); margin-bottom: var(--space-3); }
+.wired { list-style: none; padding: 0; display: grid; gap: 6px; margin-bottom: var(--space-3); }
+.wired li { font-size: var(--text-sm); display: grid; grid-template-columns: 20px 1fr; align-items: start; gap: 6px; }
+.wired li::before { content: "\2713"; font-weight: 800; color: var(--success); }
+.wired li.no::before { content: "\2715"; color: var(--danger); }
+.wired code, .card-fields code { font: 12px/1.4 var(--font-mono); background: color-mix(in srgb, var(--fg) 7%, transparent); padding: 1px 5px; border-radius: 5px; }
+.card-fields { display: grid; gap: var(--space-2); margin-bottom: var(--space-3); }
+.card-fields dt { font: 700 var(--text-xs)/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.card-fields dd { margin: 2px 0 0; font-size: var(--text-sm); line-height: 1.45; }
+.card h3 { font: 700 var(--text-xs)/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: var(--space-2) 0; }
+.brief {
+  white-space: pre-wrap; font: 12.5px/1.5 var(--font-mono); background: color-mix(in srgb, var(--fg) 6%, transparent);
+  border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-3);
+}
+.copy { margin-left: 0; }
+.card-sub { margin-top: var(--space-4) !important; }
+
 /* labels in the scene */
 .tag, .plate {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
   box-shadow: 0 3px 10px rgba(23, 36, 43, .16); white-space: nowrap; pointer-events: none;
 }
-.tag { display: grid; grid-template-columns: auto auto; column-gap: 7px; align-items: center; padding: 5px 10px 6px; }
+.tag { display: grid; grid-template-columns: auto auto; column-gap: 7px; align-items: center; padding: 5px 10px 6px; color: var(--fg); text-align: left; font: inherit; }
+button.tag { pointer-events: auto; cursor: pointer; }
+button.tag:hover { border-color: var(--accent); }
+button.tag:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+button.tag[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .tag i { width: 8px; height: 8px; border-radius: 50%; }
 .tag b { font: 800 12.5px/1.2 var(--font-display); letter-spacing: .07em; text-transform: uppercase; }
 .tag span { grid-column: 1 / -1; font: 600 11px/1.3 var(--font-mono); letter-spacing: .04em; color: var(--muted); }
@@ -89,6 +125,7 @@ body {
 .plate span:empty { display: none; }
 
 @media (max-width: 720px) {
+  .card { top: auto; bottom: 0; left: 0; width: 100vw; max-height: 72vh; border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding-bottom: max(var(--space-4), env(safe-area-inset-bottom)); }
   .stats { right: var(--space-4); bottom: 52px; padding: var(--space-3) var(--space-4); gap: var(--space-1) var(--space-3); justify-content: space-between; }
   .stats b { font-size: var(--text-xl); }
   .stats span { font-size: 10px; letter-spacing: .06em; }

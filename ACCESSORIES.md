@@ -127,4 +127,38 @@ Anything not in this list shows a small note at the top of the page naming it, s
 | `cat` | Office cat (say its color: "color": "#e08a3c") |
 | `logo` | Your logo on the back wall (put logo.png in this folder; without it, your initials) |
 
+### Travel and display (drawn in code)
+
+| id | what it is |
+|---|---|
+| `display-shelf` | Lit display shelf with six souvenirs in black-framed cubbies. It hangs on the back wall and lines up beside your logo by itself, so `near` and `spot` are not needed |
+| `meeting-table` | Long meeting table with four black leather chairs and two laptops (big: give it the `lounge` or `hub` spot) |
+| `airplane-model` | Model airplane on a stand |
+| `hot-air-balloon` | Hot air balloon on a stand |
+| `parasol` | Yellow paper parasol |
+| `globe` | Desk globe |
+| `suitcase` | Rolling suitcase (say its color: "color": "#f39a1e") |
+| `palm` | Potted palm tree |
+| `trophy` | Crystal award |
+| `teddy-bear` | Teddy bear in a yellow shirt |
+
+## The room itself
+
+Walls, floor and what is outside are set in `company.json` as `look`, not in
+accessories.json. Leave any of them out to keep the default (the first one).
+
+```json
+{
+  "name": "Sunrise Café",
+  "tagline": "Coffee, pastries and group bookings in Sta. Rosa",
+  "look": { "walls": "wood-slat", "floor": "stone", "outside": "island" }
+}
+```
+
+| key | options |
+|---|---|
+| `walls` | `plain` (painted, low) or `wood-slat` (tall light-oak slats) |
+| `floor` | `wood` (planks) or `stone` (light tiles) |
+| `outside` | `lawn` (grass and trees) or `island` (sand, sea and palm trees) |
+
 All models are CC0 from Kenney (kenney.nl): free to use, no credit required.

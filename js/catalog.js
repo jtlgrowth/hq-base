@@ -82,6 +82,24 @@ export const CATALOG = {
   // drawn in code
   "cat":              { procedural: "cat", label: "Office cat (say its color: \"color\": \"#e08a3c\")" },
   "logo":             { procedural: "logo", label: "Your logo on the back wall (put logo.png in this folder; without it, your initials)" },
+  // travel and display, drawn in code (js/props.js)
+  "display-shelf":    { procedural: "displayShelf", wall: true, label: "Lit display shelf on the back wall, six souvenirs in black-framed cubbies" },
+  "meeting-table":    { procedural: "meetingTable", label: "Long meeting table with four black leather chairs and two laptops" },
+  "airplane-model":   { procedural: "airplane", label: "Model airplane on a stand" },
+  "hot-air-balloon":  { procedural: "balloon", label: "Hot air balloon on a stand" },
+  "parasol":          { procedural: "parasol", label: "Yellow paper parasol" },
+  "globe":            { procedural: "globe", label: "Desk globe" },
+  "suitcase":         { procedural: "suitcase", label: "Rolling suitcase (say its color: \"color\": \"#f39a1e\")" },
+  "palm":             { procedural: "palm", label: "Potted palm tree" },
+  "trophy":           { procedural: "trophy", label: "Crystal award" },
+  "teddy-bear":       { procedural: "teddy", label: "Teddy bear in a yellow shirt" },
+};
+
+// The room itself, set in company.json as "look". The first value is the default.
+export const LOOKS = {
+  walls: ["plain", "wood-slat"],
+  floor: ["wood", "stone"],
+  outside: ["lawn", "island"],
 };
 
 // Named places you can use instead of x/z coordinates.

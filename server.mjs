@@ -9,6 +9,10 @@
 //   team.json         who sits at which desk (falls back to ../roster.json from /hire)
 //   accessories.json  everything you add to the office
 //   tasks.md          the board on the right (lines starting with "- [ ]" or "- [x]")
+//
+// /api/team/<id> is a teammate's job card: docs/team/<id>.md one folder up (written by
+// /hire), plus whether roster.json and the agent file have them. Read only, and only
+// those three places.
 
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
@@ -33,10 +37,17 @@ function readJSON(file, fallback) {
 const titleCase = (s) => String(s).replace(/(^|[\s-])([a-z])/g, (_, a, b) => a + b.toUpperCase());
 
 // /hire writes roster.json (agents + routes) and docs/team/<name>.md one folder up.
+const UP = join(ROOT, '..');
+const ID = /^[a-z0-9][a-z0-9_-]{0,47}$/;
+const idOf = (s) => String(s || '').toLowerCase().trim().replace(/\s+/g, '-');
+function readRoster() {
+  try { return JSON.parse(readFileSync(join(UP, 'roster.json'), 'utf8')); } catch { return null; }
+}
 function teamFromHire() {
-  const roster = (() => { try { return JSON.parse(readFileSync(join(ROOT, '..', 'roster.json'), 'utf8')); } catch { return null; } })();
+  const roster = readRoster();
   if (!roster || !Array.isArray(roster.agents)) return [];
   return roster.agents.map((id) => ({
+    id: idOf(id),
     name: titleCase(id),
     job: roster.routes?.[id]?.label || 'AI employee',
     status: 'working',
@@ -59,6 +70,7 @@ function state() {
   const company = readJSON('company.json', { name: 'My Company', tagline: '' });
   let team = readJSON('team.json', []);
   if (!Array.isArray(team) || team.length === 0) team = teamFromHire();
+  else team = team.map((m) => (m && typeof m === 'object' ? { ...m, id: idOf(m.id || m.name) } : m));
   const accessories = readJSON('accessories.json', []);
   let tasks = [];
   try { tasks = tasksFrom(readFileSync(join(ROOT, 'tasks.md'), 'utf8')); } catch { /* no board yet */ }
@@ -72,6 +84,19 @@ function state() {
   };
 }
 
+function member(id) {
+  const roster = readRoster();
+  const agent = [join('.claude', 'agents', id + '.md'), join('.codex', 'agents', id + '.toml')].find((f) => existsSync(join(UP, f)));
+  let doc = null;
+  try { doc = readFileSync(join(UP, 'docs', 'team', id + '.md'), 'utf8').slice(0, 20000); } catch { /* not hired with /hire */ }
+  return {
+    id,
+    roster: Boolean(roster && Array.isArray(roster.agents) && roster.agents.map(idOf).includes(id)),
+    agent: agent ? agent.split(sep).join('/') : null,
+    doc,
+  };
+}
+
 function send(res, code, body, type) {
   res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
   res.end(body);
@@ -82,6 +107,10 @@ const server = createServer((req, res) => {
   let path;
   try { path = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch { return send(res, 400, 'bad path', 'text/plain'); }
   if (path === '/api/state') return send(res, 200, JSON.stringify(state()), TYPES['.json']);
+  if (path.startsWith('/api/team/')) {
+    const id = path.slice('/api/team/'.length);
+    return ID.test(id) ? send(res, 200, JSON.stringify(member(id)), TYPES['.json']) : send(res, 404, 'not found', 'text/plain');
+  }
   if (path.endsWith('/')) path += 'index.html';
   const file = resolve(ROOT, '.' + path);
   // Never serve anything outside this folder, and never hidden files.
