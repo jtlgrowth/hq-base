@@ -581,6 +581,8 @@ function renderUI(state) {
   const open = state.tasks.filter((t) => !t.done).length;
   $("stat-tasks").textContent = String(open);
   $("team-pill").textContent = `${state.team.length} on the team`;
+  // The hint names a real teammate, so the example works when pasted as is.
+  $("hint-name").textContent = state.team[0]?.name || "Maya";
   $("empty").hidden = state.team.length > 0;
   const list = $("tasks");
   list.replaceChildren();
