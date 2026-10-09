@@ -61,6 +61,13 @@ await withServer(dir, async (base, out) => {
   ok(broken.status === 200 && JSON.parse(broken.text).accessories.length === 0, 'a broken accessories.json does not take the office down');
 });
 
+// no roster.json one folder up: the work tab never lists that folder
+writeFileSync(join(tmp, 'stray-notes.md'), 'someone else\'s file');
+await withServer(dir, async (base) => {
+  const st = JSON.parse((await get(base, '/api/state')).text);
+  ok(Array.isArray(st.work) && st.work.length === 0, 'outside a desk folder the work tab lists nothing');
+});
+
 // the /hire fallback: empty team.json + ../roster.json, and the job cards beside it
 writeFileSync(join(dir, 'team.json'), '[]');
 writeFileSync(join(tmp, 'roster.json'), JSON.stringify({ agents: ['maya', 'nora'], routes: { maya: { label: 'Enquiry Desk' }, nora: { label: 'Page replies' } } }));
@@ -69,10 +76,18 @@ mkdirSync(join(tmp, '.claude', 'agents'), { recursive: true });
 writeFileSync(join(tmp, 'docs', 'team', 'maya.md'), '# Maya: Enquiry Desk\n\n**Job:** every enquiry answered the same day.\n');
 writeFileSync(join(tmp, '.claude', 'agents', 'maya.md'), '---\nname: maya\n---\n');
 writeFileSync(join(tmp, 'secret.md'), 'not for the page');
+mkdirSync(join(tmp, 'brain'), { recursive: true });
+writeFileSync(join(tmp, 'brain', 'rules.md'), '# Rules\n\n- Never send anything outside without my approval.\n- Never guess a number.\n');
+writeFileSync(join(tmp, 'brain', 'company.md'), 'Gladex sells tours.\n');
+writeFileSync(join(tmp, 'CLAUDE.md'), 'Read brain/ before every task.\n');
+mkdirSync(join(tmp, 'ads'), { recursive: true });
+writeFileSync(join(tmp, 'ads', 'report.md'), '| total | 3 |\n');
 await withServer(dir, async (base) => {
   const st = JSON.parse((await get(base, '/api/state')).text);
   ok(st.team.length === 2 && st.team[0].name === 'Maya' && st.team[0].job === 'Enquiry Desk', 'team falls back to ../roster.json from /hire');
   ok(st.team[0].id === 'maya', 'a roster teammate carries its id for the job card');
+  ok(st.brain.files.filter((f) => f.present).length === 2 && st.brain.rules.length === 2 && st.brain.rules[0].startsWith('Never send') && st.brain.reads === true, 'the brain tab reads ../brain/ and the CLAUDE.md rule', JSON.stringify(st.brain));
+  ok(st.work.some((w) => w.path === 'ads/report.md') && st.work.every((w) => !w.path.startsWith('hq') && w.path !== 'roster.json' && !w.path.startsWith('brain/') && !w.path.startsWith('docs/')), 'the work tab lists what the team made, not the HQ, roster, brain or job docs', JSON.stringify(st.work.map((w) => w.path)));
   const card = JSON.parse((await get(base, '/api/team/maya')).text);
   ok(card.roster === true && card.agent === '.claude/agents/maya.md' && card.doc.includes('every enquiry'), 'a job card reads docs/team, roster.json and the agent file', JSON.stringify(card));
   const nora = JSON.parse((await get(base, '/api/team/nora')).text);

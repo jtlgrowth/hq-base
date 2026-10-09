@@ -10,6 +10,7 @@
 //   accessories.json  everything you add to the office
 //   tasks.md          the board on the right (lines starting with "- [ ]" or "- [x]")
 //
+// The state also carries the desk's brain/ (Day 2) and the newest files made in the desk.
 // /api/team/<id> is a teammate's job card: docs/team/<id>.md one folder up (written by
 // /hire), plus whether roster.json and the agent file have them. Read only, and only
 // those three places.
@@ -62,6 +63,49 @@ function tasksFrom(md) {
     .map((m) => ({ done: m[1].toLowerCase() === 'x', text: m[2] }));
 }
 
+// The desk's brain (Day 2: brain/ one folder up) and whether CLAUDE.md or AGENTS.md
+// tells the team to read it before every task.
+const BRAIN = ['company.md', 'desk.md', 'process.md', 'examples.md', 'rules.md'];
+function brain() {
+  const files = BRAIN.map((name) => {
+    try { return { name, present: true, lines: readFileSync(join(UP, 'brain', name), 'utf8').split(/\r?\n/).filter((l) => l.trim()).length }; }
+    catch { return { name, present: false, lines: 0 }; }
+  });
+  let rules = [];
+  try {
+    rules = readFileSync(join(UP, 'brain', 'rules.md'), 'utf8').split(/\r?\n/)
+      .map((l) => l.replace(/^\s*(?:[-*]|\d+[.)])\s+/, '').trim())
+      .filter((l) => l && !l.startsWith('#') && !l.startsWith('<!--')).slice(0, 8).map((l) => l.slice(0, 160));
+  } catch { /* no rules yet */ }
+  const reads = ['CLAUDE.md', 'AGENTS.md'].some((f) => { try { return /brain\//i.test(readFileSync(join(UP, f), 'utf8')); } catch { return false; } });
+  return { files, rules, reads };
+}
+
+// The newest files the team made in the desk folder, names only, two levels deep.
+// Only in a real desk folder (one with roster.json), so a clone in the wrong place
+// never lists someone's home folder.
+const SKIP = new Set(['hq', 'node_modules', 'docs', 'brain']);
+const NOT_WORK = new Set(['roster.json', 'CLAUDE.md', 'AGENTS.md', 'hire.config.json']);
+function work() {
+  if (!existsSync(join(UP, 'roster.json'))) return [];
+  const out = [];
+  let seen = 0;
+  const walk = (rel, depth) => {
+    let entries;
+    try { entries = readdirSync(join(UP, rel), { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      if (++seen > 600) return;
+      if (e.name.startsWith('.') || (depth === 0 && SKIP.has(e.name))) continue;
+      const r = rel ? rel + '/' + e.name : e.name;
+      if (e.isDirectory()) { if (depth < 2) walk(r, depth + 1); continue; }
+      if (!/\.(md|html|csv|xlsx|txt|json|pdf|png|jpe?g)$/i.test(e.name) || NOT_WORK.has(r)) continue;
+      try { out.push({ path: r, when: statSync(join(UP, r)).mtimeMs }); } catch { /* gone */ }
+    }
+  };
+  walk('', 0);
+  return out.sort((a, b) => b.when - a.when).slice(0, 8);
+}
+
 function customModels() {
   try { return readdirSync(join(ROOT, 'models', 'custom')).filter((f) => /\.(glb|gltf)$/i.test(f)); } catch { return []; }
 }
@@ -80,6 +124,8 @@ function state() {
     accessories: Array.isArray(accessories) ? accessories.slice(0, 200) : [],
     tasks: tasks.slice(0, 8),
     custom: customModels(),
+    brain: brain(),
+    work: work(),
     logo: ['logo.png', 'logo.jpg', 'logo.svg', 'logo.webp'].find((f) => existsSync(join(ROOT, f))) || null,
   };
 }

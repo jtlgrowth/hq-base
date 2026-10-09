@@ -39,17 +39,30 @@ body {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
   padding: var(--space-4); box-shadow: var(--shadow);
 }
-.board h2 { font: 700 var(--text-xs)/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: var(--space-3); }
+.board { max-height: calc(100vh - 260px); overflow: auto; }
+.tabs { display: flex; gap: 4px; margin-bottom: var(--space-3); background: color-mix(in srgb, var(--fg) 6%, transparent); border-radius: var(--radius-pill); padding: 4px; }
+.tab {
+  flex: 1; min-height: 36px; border: 0; border-radius: var(--radius-pill); background: transparent; cursor: pointer;
+  font: 700 var(--text-xs)/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
+}
+.tab[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 4px rgba(23, 36, 43, .14); }
+.tab:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+.pane h3 { font: 700 var(--text-xs)/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: var(--space-3) 0 var(--space-2); }
+.rules { padding-left: 20px; display: grid; gap: 6px; font-size: var(--text-sm); line-height: 1.4; }
+.work li { display: grid; gap: 2px; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.work li::before { display: none; }
+.work code { font: 12.5px/1.35 var(--font-mono); overflow-wrap: anywhere; }
+.work span { font-size: var(--text-xs); color: var(--muted); }
 .board ul { list-style: none; padding: 0; display: grid; gap: var(--space-2); }
-.board li {
+.board #tasks li {
   padding: var(--space-2) var(--space-3) var(--space-2) 28px; border: 1px solid var(--border); border-radius: var(--radius-md);
   position: relative; font-size: var(--text-base); line-height: 1.35;
 }
-.board li::before { content: ""; position: absolute; left: 11px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: var(--warn); }
-.board li.done { color: var(--muted); text-decoration: line-through; }
-.board li.done::before { background: var(--success); }
-.board li.empty { color: var(--muted); padding-left: var(--space-3); }
-.board li.empty::before { display: none; }
+.board #tasks li::before { content: ""; position: absolute; left: 11px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: var(--warn); }
+.board #tasks li.done { color: var(--muted); text-decoration: line-through; }
+.board #tasks li.done::before { background: var(--success); }
+.board li.empty { color: var(--muted); padding-left: var(--space-3); border: 1px dashed var(--border); border-radius: var(--radius-md); }
+.board #tasks li.empty::before { display: none; }
 .hint { margin-top: var(--space-3); font: var(--text-xs)/1 var(--font-mono); color: var(--muted); }
 
 /* stat card, bottom left */

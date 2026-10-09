@@ -7,7 +7,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import * as SkeletonUtils from "three/addons/utils/SkeletonUtils.js";
 import { SETTINGS } from "./settings.js";
-import { CATALOG, SPOTS, LOOKS } from "./catalog.js";
+import { CATALOG, SPOTS, LOOKS, SCREEN_SHOWS } from "./catalog.js";
 import * as PROPS from "./props.js";
 
 const C = SETTINGS.scene;
@@ -97,12 +97,15 @@ async function prop(file) {
 
 // ------------------------------------------------------------------ layout ----
 let layout = null;
-function computeLayout(n) {
+// bigs: depths of the big pieces (meeting table, meeting room) that stack along the
+// lounge; the room grows deeper so they never pile on each other.
+function computeLayout(n, bigs = []) {
   const cols = n <= 2 ? Math.max(1, n) : n <= 4 ? 2 : COLS;
   const rows = Math.max(1, Math.ceil(n / cols));
   const workW = cols * POD_X, workD = rows * POD_Z;
   const W = MARGIN + workW + 0.8 + LOUNGE_W + MARGIN;
-  const D = MARGIN + workD + FRONT + MARGIN * 0.6;
+  const STACK_START = 1.7, STACK_GAP = 0.45;
+  const D = Math.max(MARGIN + workD + FRONT + MARGIN * 0.6, STACK_START + bigs.reduce((a, d) => a + d + STACK_GAP, 0) + 1.5);
   const x0 = -W / 2 + MARGIN, z0 = -D / 2 + MARGIN;
   const desks = Array.from({ length: n }, (_, i) => ({
     x: x0 + ((i % cols) + 0.5) * POD_X,
@@ -119,7 +122,9 @@ function computeLayout(n) {
     "front-left": { x: -W / 2 + 0.75, z: D / 2 - 0.75 },
     "front-right": { x: W / 2 - 0.75, z: D / 2 - 0.75 },
   };
-  return { n, W, D, desks, spots, hub: { x: x0 + workW * 0.62, z: D / 2 - FRONT / 2 - 0.1 } };
+  let z = -D / 2 + STACK_START;
+  const bigSlots = bigs.map((d) => { const c = z + d / 2; z += d + STACK_GAP; return { x: loungeX, z: c }; });
+  return { n, W, D, desks, spots, bigSlots, hub: { x: x0 + workW * 0.62, z: D / 2 - FRONT / 2 - 0.1 } };
 }
 
 // ---------------------------------------------------------------- building ----
@@ -436,26 +441,32 @@ function position(item, L, members, counters) {
 
 const validColor = (c) => (typeof c === "string" && /^#[0-9a-f]{3,8}$/i.test(c) ? c : null);
 
-// Things that hang on the back wall (the logo, display shelves) line up along it by
-// themselves: the logo in the middle, shelves alternating left and right of it.
+// Things that hang on a wall (the logo, display shelves, screens, the map) line up by
+// themselves: the logo in the middle of the back wall, the rest alternating left and
+// right of it, and once the back wall is full, along the left wall from the back.
+const scaleOf = (it) => Math.max(0.2, Math.min(4, Number(it.scale) || 1));
+const isLogo = (it) => CATALOG[it.model]?.procedural === "logo";
 function wallSlots(items, L) {
   const slots = new Map();
-  const logoAt = items.findIndex((it) => CATALOG[it.model]?.procedural === "logo" && typeof it.x !== "number");
-  const widthOf = (it) => (CATALOG[it.model]?.procedural === "logo" ? 2.1 : PROPS.SHELF.w * KIT * Math.max(0.2, Math.min(4, Number(it.scale) || 1)));
-  let left = 0, right = 0, first = true;
-  if (logoAt >= 0) { slots.set(logoAt, 0); left = right = 2.1 / 2 + 0.3; first = false; }
-  let goLeft = true;
+  const widthOf = (it) => (isLogo(it) ? 2.1 : CATALOG[it.model].wall.w * KIT * scaleOf(it));
+  const lo = -L.W / 2 + 0.25, hi = L.W / 2 - 0.25;
+  let left = null, right = null, side = -L.D / 2 + 0.35, goLeft = true;
+  const logoAt = items.findIndex((it) => isLogo(it) && typeof it.x !== "number");
+  if (logoAt >= 0) { slots.set(logoAt, { wall: "back", pos: 0 }); left = -2.1 / 2 - 0.3; right = 2.1 / 2 + 0.3; }
   items.forEach((it, i) => {
-    if (i === logoAt || !CATALOG[it.model]?.wall || typeof it.x === "number") return;
+    if (isLogo(it) || !CATALOG[it.model]?.wall || typeof it.x === "number") return;
     const w = widthOf(it);
-    if (first) { slots.set(i, 0); left = right = w / 2 + 0.3; first = false; return; }
-    if (goLeft) { slots.set(i, -(left + w / 2)); left += w + 0.3; }
-    else { slots.set(i, right + w / 2); right += w + 0.3; }
-    goLeft = !goLeft;
+    if (left === null) { slots.set(i, { wall: "back", pos: 0 }); left = -w / 2 - 0.3; right = w / 2 + 0.3; return; }
+    const fitsL = left - w >= lo, fitsR = right + w <= hi;
+    if (fitsL && (goLeft || !fitsR)) { slots.set(i, { wall: "back", pos: left - w / 2 }); left -= w + 0.3; goLeft = false; }
+    else if (fitsR) { slots.set(i, { wall: "back", pos: right + w / 2 }); right += w + 0.3; goLeft = true; }
+    else { slots.set(i, { wall: "left", pos: Math.min(L.D / 2 - 0.3 - w / 2, side + w / 2) }); side += w + 0.3; }
   });
-  for (const [i, x] of slots) slots.set(i, Math.max(-L.W / 2 + 0.2 + widthOf(items[i]) / 2, Math.min(L.W / 2 - 0.2 - widthOf(items[i]) / 2, x)));
   return slots;
 }
+// the big pieces that stack along the lounge (not given their own spot or x/z)
+const stacked = (it) => Boolean(CATALOG[it.model]?.big) && typeof it.x !== "number" && (!it.spot || it.spot === "lounge");
+const bigsOf = (items) => items.filter((it) => it && typeof it === "object" && stacked(it)).map((it) => CATALOG[it.model].big * KIT * scaleOf(it));
 
 const clampTo = (p, L) => ({
   x: Math.max(-L.W / 2 + 0.35, Math.min(L.W / 2 - 0.35, p.x)),
@@ -493,12 +504,13 @@ async function syncDecor(state, L, force) {
   const wanted = new Map();
   const items = state.accessories.filter((item) => item && typeof item === "object");
   const slots = wallSlots(items, L);
+  let b = 0;
   items.forEach((item, i) => {
-    item = { ...item, _slot: slots.get(i) };
+    item = { ...item, _slot: slots.get(i), _big: stacked(item) ? L.bigSlots[b++] : undefined };
     wanted.set(i + ":" + JSON.stringify(item), item);
   });
   for (const [k, obj] of placed) {
-    if (force || !wanted.has(k)) { decor.remove(obj); disposeGroup(obj); placed.delete(k); }
+    if (force || !wanted.has(k)) { decor.remove(obj); disposeGroup(obj); placed.delete(k); screens.delete(k); }
   }
   const added = [];
   for (const [k, item] of wanted) {
@@ -511,12 +523,18 @@ async function syncDecor(state, L, force) {
     try { obj = await makeAccessory(item, state.company, state.logo); } catch (e) { console.warn("could not load", id, e); }
     if (!obj) { unknown.push(id); continue; }
     if (CATALOG[id]?.procedural === "logo") {
-      const x = typeof item.x === "number" ? item.x : item._slot ?? 0;
+      const x = typeof item.x === "number" ? item.x : item._slot?.pos ?? 0;
       obj.position.set(Math.max(-L.W / 2 + 1.3, Math.min(L.W / 2 - 1.3, x)), lookOf(state.company).walls === "wood-slat" ? 0.85 : 0.62, -L.D / 2 + 0.16);
     } else if (CATALOG[id]?.wall) {
-      const sc = Math.max(0.2, Math.min(4, Number(item.scale) || 1)) * KIT;
-      const x = typeof item.x === "number" ? item.x : item._slot ?? 0;
-      obj.position.set(Math.max(-L.W / 2 + 0.2, Math.min(L.W / 2 - 0.2, x)), 0, -L.D / 2 + 0.14 + (PROPS.SHELF.d / 2) * sc + 0.01);
+      const d = CATALOG[id].wall.d * KIT * scaleOf(item);
+      const slot = typeof item.x === "number" ? { wall: "back", pos: item.x } : item._slot || { wall: "back", pos: 0 };
+      if (slot.wall === "left") {
+        obj.position.set(-L.W / 2 + 0.14 + d / 2 + 0.01, 0, slot.pos);
+        obj.rotation.y = Math.PI / 2;
+      } else obj.position.set(Math.max(-L.W / 2 + 0.2, Math.min(L.W / 2 - 0.2, slot.pos)), 0, -L.D / 2 + 0.14 + d / 2 + 0.01);
+    } else if (item._big) {
+      obj.position.set(item._big.x, 0, item._big.z);
+      obj.rotation.y = ((Number(item.rotY) || 0) * Math.PI) / 180;
     } else {
       const p = clampTo(position(item, L, state.team, counters), L);
       obj.position.x = p.x; obj.position.z = p.z;
@@ -527,6 +545,7 @@ async function syncDecor(state, L, force) {
     obj.scale.setScalar(force || motionOff() ? scale : 0.001);
     decor.add(obj);
     placed.set(k, obj);
+    if (obj.userData.screen) screens.set(k, { ...obj.userData.screen, show: SCREEN_SHOWS.includes(item.show) ? item.show : SCREEN_SHOWS[0], drawn: "" });
     if (!force && !motionOff()) added.push(obj);
   }
   const t0 = performance.now();
@@ -539,12 +558,26 @@ async function syncDecor(state, L, force) {
 
 // ---------------------------------------------------------------- overlay UI ----
 function renderUI(state) {
-  $("company").textContent = (state.company.name || "My Company") + " HQ";
-  document.title = (state.company.name || "My Company") + " HQ";
+  $("company").textContent = hqName(state.company);
+  document.title = hqName(state.company);
   const counts = { working: 0, idle: 0, waiting: 0, away: 0 };
   state.team.forEach((m) => { counts[STATUS[m.status] ? m.status : "working"]++; });
   $("stat-working").textContent = String(counts.working);
-  $("stat-idle").textContent = String(counts.idle + counts.waiting);
+  const brain = state.brain || { files: [], rules: [], reads: false };
+  $("stat-brain").textContent = `${brain.files.filter((f) => f.present).length}/${brain.files.length || 5}`;
+  $("brain-files").replaceChildren(
+    ...brain.files.map((f) => li(f.present, f.present ? `<code>brain/${esc(f.name)}</code> · ${f.lines} lines` : `<code>brain/${esc(f.name)}</code> missing`)),
+    li(brain.reads, brain.reads ? "Your team reads it before every task (CLAUDE.md)" : "CLAUDE.md does not tell your team to read brain/ yet"),
+  );
+  $("brain-rules").replaceChildren(...(brain.rules.length ? brain.rules : ["No rules yet. Write brain/rules.md."]).map((r) => Object.assign(document.createElement("li"), { textContent: r })));
+  const work = state.work || [];
+  $("work").replaceChildren(...(work.length ? work.map((w) => {
+    const el = document.createElement("li");
+    el.innerHTML = `<code></code><span></span>`;
+    el.querySelector("code").textContent = w.path;
+    el.querySelector("span").textContent = ago(w.when);
+    return el;
+  }) : [Object.assign(document.createElement("li"), { className: "empty", textContent: "Nothing made in your desk folder yet." })]));
   const open = state.tasks.filter((t) => !t.done).length;
   $("stat-tasks").textContent = String(open);
   $("team-pill").textContent = `${state.team.length} on the team`;
@@ -564,6 +597,56 @@ function renderUI(state) {
     list.append(li);
   }
 }
+
+// --------------------------------------------------------------- LED screens ----
+// Each screen's face is a canvas, redrawn only when what it shows has changed.
+const screens = new Map(); // accessory key -> { canvas, texture, show, drawn }
+const hqName = (company) => (typeof company.hq === "string" && company.hq.trim()) || `${company.name || "My Company"} HQ`;
+const ago = (ms) => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`; };
+function screenLines(show, state) {
+  const dot = { working: "#3ccf7a", idle: "#9aa5ad", waiting: "#f2b63c", away: "#6b7780" };
+  if (show === "tasks") return { title: "TODAY", lines: state.tasks.length ? state.tasks.map((t) => ({ text: t.text, mark: t.done ? "#3ccf7a" : "#f2b63c", dim: t.done })) : [{ text: "Nothing on the board yet" }] };
+  if (show === "brain") {
+    const b = state.brain || { files: [], rules: [] };
+    const have = b.files.filter((f) => f.present).length;
+    return { title: `BRAIN · ${have}/${b.files.length || 5} FILES`, lines: b.rules.length ? b.rules.map((r) => ({ text: r, mark: "#7fd4ff" })) : [{ text: "No brain/rules.md yet" }] };
+  }
+  if (show === "work") return { title: "LATEST WORK", lines: (state.work || []).length ? state.work.map((w) => ({ text: w.path, sub: ago(w.when), mark: "#7fd4ff" })) : [{ text: "Nothing made in this folder yet" }] };
+  return { title: "TEAM", lines: state.team.length ? state.team.map((m) => ({ text: `${m.name} · ${m.job || "AI employee"}`, mark: dot[m.status] || dot.working })) : [{ text: "No team yet. Run /hire." }] };
+}
+function drawScreens(state) {
+  if (!screens.size) return;
+  const clock = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  for (const sc of screens.values()) {
+    const { title, lines } = screenLines(sc.show, state);
+    const key = JSON.stringify([hqName(state.company), clock, title, lines]);
+    if (key === sc.drawn) continue;
+    sc.drawn = key;
+    const c = sc.canvas, x = c.getContext("2d"), W = c.width, H = c.height;
+    x.fillStyle = "#0b1220"; x.fillRect(0, 0, W, H);
+    x.fillStyle = "#13203a"; x.fillRect(0, 0, W, 86);
+    x.font = "700 34px system-ui, -apple-system, Segoe UI, sans-serif"; x.textBaseline = "middle";
+    x.fillStyle = "#e8f1f8"; x.fillText(hqName(state.company).slice(0, 34), 36, 44);
+    x.textAlign = "right"; x.fillStyle = "#9fb3c8"; x.fillText(clock, W - 36, 44); x.textAlign = "left";
+    x.font = "700 26px ui-monospace, Menlo, Consolas, monospace"; x.fillStyle = "#7fd4ff"; x.fillText(title, 36, 128);
+    const rowH = Math.min(62, (H - 210) / Math.max(1, Math.min(6, lines.length)));
+    lines.slice(0, 6).forEach((l, i) => {
+      const y = 186 + i * rowH;
+      if (l.mark) { x.fillStyle = l.mark; x.beginPath(); x.arc(48, y, 9, 0, Math.PI * 2); x.fill(); }
+      x.font = "600 32px system-ui, -apple-system, Segoe UI, sans-serif"; x.fillStyle = l.dim ? "#6b7780" : "#e8f1f8";
+      let t = l.text; const max = W - 110 - (l.sub ? 190 : 0);
+      while (x.measureText(t).width > max && t.length > 4) t = t.slice(0, -2);
+      if (t !== l.text) t = t.replace(/.$/, "…");
+      x.fillText(t, 72, y);
+      if (l.sub) { x.textAlign = "right"; x.font = "500 26px system-ui, sans-serif"; x.fillStyle = "#9fb3c8"; x.fillText(l.sub, W - 36, y); x.textAlign = "left"; }
+    });
+    x.fillStyle = "#3ccf7a"; x.beginPath(); x.arc(44, H - 34, 8, 0, Math.PI * 2); x.fill();
+    x.font = "700 22px ui-monospace, Menlo, Consolas, monospace"; x.fillStyle = "#9fb3c8"; x.fillText("LIVE", 62, H - 33);
+    sc.texture.needsUpdate = true;
+  }
+  requestRender();
+}
+setInterval(() => { if (lastState) drawScreens(lastState); }, 30_000); // the clock on the screens
 
 // ------------------------------------------------------------------ job card ----
 // What /hire wrote about a teammate (docs/team/<id>.md), whether they are wired in,
@@ -607,6 +690,7 @@ async function openCard(member, tagEl) {
     li(info.roster, info.roster ? "Listed in <code>roster.json</code>" : "Not in <code>roster.json</code> (it sits here from team.json)"),
     li(Boolean(info.agent), info.agent ? `Agent file <code>${esc(info.agent)}</code>` : `No agent file. Run <code>/hire</code> in your desk folder.`),
     li(Boolean(info.doc), info.doc ? `Job card <code>docs/team/${id}.md</code>` : `No job card at <code>docs/team/${id}.md</code>`),
+    li(Boolean(lastState?.brain?.reads), lastState?.brain?.reads ? "Reads <code>brain/</code> before every task" : "Does not read <code>brain/</code> yet: add it to <code>CLAUDE.md</code>"),
   );
   const f = fieldsOf(info.doc);
   for (const key of FIELDS) {
@@ -632,6 +716,25 @@ function closeCard() {
   document.querySelectorAll("button.tag[aria-expanded=true]").forEach((b) => { b.setAttribute("aria-expanded", "false"); });
 }
 $("card-close").addEventListener("click", closeCard);
+
+// the panel on the right: Today, Brain, Work
+const TABS = ["today", "brain", "work"];
+function showTab(name) {
+  for (const t of TABS) {
+    $("tab-" + t).setAttribute("aria-selected", String(t === name));
+    $("tab-" + t).tabIndex = t === name ? 0 : -1;
+    $("pane-" + t).hidden = t !== name;
+  }
+  try { localStorage.setItem("hq-tab", name); } catch { /* private window */ }
+}
+TABS.forEach((t, i) => {
+  $("tab-" + t).addEventListener("click", () => showTab(t));
+  $("tab-" + t).addEventListener("keydown", (e) => {
+    const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    if (step) { const n = TABS[(i + step + TABS.length) % TABS.length]; showTab(n); $("tab-" + n).focus(); }
+  });
+});
+try { const saved = localStorage.getItem("hq-tab"); if (TABS.includes(saved)) showTab(saved); } catch { /* private window */ }
 addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("card").hidden) closeCard(); });
 $("card-copy").addEventListener("click", async () => {
   const b = $("card-copy");
@@ -641,7 +744,8 @@ $("card-copy").addEventListener("click", async () => {
 });
 
 // ---------------------------------------------------------------------- state ----
-let last = { company: "", team: "", decor: "", ui: "" };
+let last = { company: "", team: "", decor: "", bigs: "" };
+let lastState = null;
 let busy = false;
 async function poll() {
   if (busy) return;
@@ -653,17 +757,20 @@ async function poll() {
     $("offline").hidden = true;
     const teamKey = JSON.stringify(state.team.map((m) => [m.name, m.job, m.status, m.character]));
     const companyKey = JSON.stringify(state.company);
-    const rebuild = teamKey !== last.team || companyKey !== last.company || !layout;
+    const bigKey = JSON.stringify(bigsOf(state.accessories));
+    const rebuild = teamKey !== last.team || companyKey !== last.company || bigKey !== last.bigs || !layout;
     if (rebuild) {
-      layout = computeLayout(state.team.length);
+      layout = computeLayout(state.team.length, bigsOf(state.accessories));
       buildRoom(layout, state.company);
       await buildTeam(layout, state.team);
       fitCamera();
     }
     const decorKey = JSON.stringify([state.accessories, state.custom, state.logo]);
     if (rebuild || decorKey !== last.decor) await syncDecor(state, layout, rebuild && last.team === "");
+    lastState = state;
     renderUI(state);
-    last = { company: companyKey, team: teamKey, decor: decorKey };
+    drawScreens(state);
+    last = { company: companyKey, team: teamKey, decor: decorKey, bigs: bigKey };
   } catch (e) {
     $("offline").hidden = false;
   } finally {

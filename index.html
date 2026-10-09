@@ -24,16 +24,32 @@
   <button class="pill btn" id="motion" type="button" aria-pressed="false">Pause motion</button>
 </header>
 
-<aside class="board" aria-labelledby="board-title">
-  <h2 id="board-title">Today</h2>
-  <ul id="tasks"></ul>
-  <p class="hint">From tasks.md</p>
+<aside class="board" aria-label="Your system: today, brain and work">
+  <div class="tabs" role="tablist" aria-label="Panels">
+    <button class="tab" role="tab" id="tab-today" aria-selected="true" aria-controls="pane-today" type="button">Today</button>
+    <button class="tab" role="tab" id="tab-brain" aria-selected="false" aria-controls="pane-brain" tabindex="-1" type="button">Brain</button>
+    <button class="tab" role="tab" id="tab-work" aria-selected="false" aria-controls="pane-work" tabindex="-1" type="button">Work</button>
+  </div>
+  <div class="pane" role="tabpanel" id="pane-today" aria-labelledby="tab-today">
+    <ul id="tasks"></ul>
+    <p class="hint">From tasks.md</p>
+  </div>
+  <div class="pane" role="tabpanel" id="pane-brain" aria-labelledby="tab-brain" hidden>
+    <ul class="wired" id="brain-files"></ul>
+    <h3>Rules your team follows</h3>
+    <ol class="rules" id="brain-rules"></ol>
+    <p class="hint">From ../brain/</p>
+  </div>
+  <div class="pane" role="tabpanel" id="pane-work" aria-labelledby="tab-work" hidden>
+    <ul class="work" id="work"></ul>
+    <p class="hint">Newest files in your desk folder</p>
+  </div>
 </aside>
 
 <section class="stats" aria-label="Office at a glance">
   <div><b id="stat-working">0</b><span>working</span></div>
-  <div><b id="stat-idle">0</b><span>idle</span></div>
   <div><b id="stat-tasks">0</b><span>open tasks</span></div>
+  <div><b id="stat-brain">0/5</b><span>brain files</span></div>
   <div><b id="stat-decor">0</b><span>accessories</span></div>
 </section>
 

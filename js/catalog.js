@@ -83,8 +83,8 @@ export const CATALOG = {
   "cat":              { procedural: "cat", label: "Office cat (say its color: \"color\": \"#e08a3c\")" },
   "logo":             { procedural: "logo", label: "Your logo on the back wall (put logo.png in this folder; without it, your initials)" },
   // travel and display, drawn in code (js/props.js)
-  "display-shelf":    { procedural: "displayShelf", wall: true, label: "Lit display shelf on the back wall, six souvenirs in black-framed cubbies" },
-  "meeting-table":    { procedural: "meetingTable", label: "Long meeting table with four black leather chairs and two laptops" },
+  "display-shelf":    { procedural: "displayShelf", wall: { w: 1.3, d: 0.12 }, label: "Lit display shelf on the back wall, six souvenirs in black-framed cubbies" },
+  "meeting-table":    { procedural: "meetingTable", big: 1.6, label: "Long meeting table with four black leather chairs and two laptops" },
   "airplane-model":   { procedural: "airplane", label: "Model airplane on a stand" },
   "hot-air-balloon":  { procedural: "balloon", label: "Hot air balloon on a stand" },
   "parasol":          { procedural: "parasol", label: "Yellow paper parasol" },
@@ -93,7 +93,18 @@ export const CATALOG = {
   "palm":             { procedural: "palm", label: "Potted palm tree" },
   "trophy":           { procedural: "trophy", label: "Crystal award" },
   "teddy-bear":       { procedural: "teddy", label: "Teddy bear in a yellow shirt" },
+  // the system on the walls, and bigger rooms (js/props.js)
+  "led-screen":       { procedural: "ledScreen", wall: { w: 1.45, d: 0.06 }, label: "LED wall screen, live: \"show\": \"team\", \"tasks\", \"brain\" or \"work\"" },
+  "world-map":        { procedural: "worldMap", wall: { w: 1.25, d: 0.03 }, label: "World map with pins, on the wall" },
+  "meeting-room":     { procedural: "meetingRoom", big: 1.8, label: "Glass meeting room: round table, four chairs and a TV" },
+  "reception-desk":   { procedural: "receptionDesk", label: "Reception desk with a monitor and a bell (best at the entrance spot)" },
+  "whiteboard":       { procedural: "whiteboard", label: "Whiteboard on wheels" },
+  "water-dispenser":  { procedural: "waterDispenser", label: "Water dispenser" },
+  "printer":          { procedural: "printer", label: "Office printer" },
 };
+
+// What an LED screen can show, set with "show" on the accessory. The first is the default.
+export const SCREEN_SHOWS = ["team", "tasks", "brain", "work"];
 
 // The room itself, set in company.json as "look". The first value is the default.
 export const LOOKS = {

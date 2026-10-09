@@ -264,3 +264,106 @@ export function meetingTable() {
   }
   return g;
 }
+
+// --------------------------------------------------------------- wall pieces ----
+// The LED screen's face is a canvas the page redraws with live data (see main.js).
+export const SCREEN = { w: 1.45, h: 0.82, y: 0.3, d: 0.06 };
+export function ledScreen() {
+  const { w: W, h: H, y: Y, d: D } = SCREEN;
+  const g = new THREE.Group();
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024; canvas.height = Math.round(1024 * (H - 0.04) / (W - 0.04));
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  g.add(box(W, H, D, mat(0x111214), 0, Y + H / 2, 0));                      // bezel
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.04, H - 0.04), new THREE.MeshBasicMaterial({ map: texture }));
+  face.position.set(0, Y + H / 2, D / 2 + 0.002);
+  g.add(face, box(0.5, 0.02, 0.012, glow(0x7fd4ff), 0, Y - 0.012, D / 2 - 0.006)); // a glow strip under it
+  g.userData.screen = { canvas, texture };
+  return g;
+}
+
+export const MAP = { w: 1.25, h: 0.72, y: 0.3, d: 0.03 };
+export function worldMap() {
+  const { w: W, h: H, y: Y, d: D } = MAP;
+  const g = new THREE.Group();
+  const cv = document.createElement("canvas");
+  cv.width = 1024; cv.height = Math.round(1024 * H / W);
+  const x = cv.getContext("2d");
+  x.fillStyle = "#cfe9f2"; x.fillRect(0, 0, cv.width, cv.height);
+  x.fillStyle = "#e9d9b0";
+  // a hand-drawn world: blobs for the continents, good enough at office scale
+  const blob = (cx, cy, rx, ry, rot = 0) => { x.beginPath(); x.ellipse(cx * cv.width, cy * cv.height, rx * cv.width, ry * cv.height, rot, 0, Math.PI * 2); x.fill(); };
+  blob(0.2, 0.3, 0.12, 0.13, 0.3); blob(0.27, 0.66, 0.06, 0.16, 0.2);                 // the Americas
+  blob(0.5, 0.28, 0.06, 0.08); blob(0.52, 0.58, 0.07, 0.15);                          // Europe, Africa
+  blob(0.7, 0.3, 0.17, 0.13); blob(0.79, 0.5, 0.03, 0.06, 0.4); blob(0.85, 0.74, 0.07, 0.06); // Asia, the Philippines side, Australia
+  x.fillStyle = "#e4572e";
+  for (const [px, py] of [[0.795, 0.48], [0.81, 0.53], [0.86, 0.32], [0.74, 0.47], [0.5, 0.27]]) { x.beginPath(); x.arc(px * cv.width, py * cv.height, 9, 0, Math.PI * 2); x.fill(); }
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  g.add(box(W, H, D, mat(0x26272a), 0, Y + H / 2, 0));
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.05, H - 0.05), new THREE.MeshLambertMaterial({ map: t }));
+  face.position.set(0, Y + H / 2, D / 2 + 0.002);
+  g.add(face);
+  return g;
+}
+
+// ------------------------------------------------------------- bigger rooms ----
+export function meetingRoom() {
+  const g = new THREE.Group();
+  const W = 2.2, D = 1.7, H = 0.95;
+  const glass = mat(0xbfe3f2, { transparent: true, opacity: 0.28, depthWrite: false });
+  const frame = mat(0x26272a);
+  const pane = (w, d, x, z) => { const p = box(w, H, d, glass, x, H / 2, z); p.castShadow = false; g.add(p); };
+  g.add(box(W - 0.1, 0.01, D - 0.1, mat(0xd9d4cc), 0, 0.005, 0));            // its own carpet
+  pane(W, 0.02, 0, -D / 2); pane(0.02, D, -W / 2, 0); pane(0.02, D, W / 2, 0);
+  pane(W * 0.6, 0.02, -W * 0.2, D / 2);                                      // front, with a door gap
+  for (const [x, z] of [[-W / 2, -D / 2], [W / 2, -D / 2], [-W / 2, D / 2], [W / 2, D / 2], [W * 0.1, D / 2]]) g.add(box(0.04, H, 0.04, frame, x, H / 2, z));
+  g.add(box(W, 0.035, 0.04, frame, 0, H, -D / 2), box(0.04, 0.035, D, frame, -W / 2, H, 0), box(0.04, 0.035, D, frame, W / 2, H, 0), box(W, 0.035, 0.04, frame, 0, H, D / 2));
+  g.add(cyl(0.4, 0.4, 0.04, mat(0xdcc9a8), 0, 0.38, 0.05, 24), cyl(0.04, 0.12, 0.36, frame, 0, 0.18, 0.05, 12));
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const ch = execChair();
+    ch.position.set(Math.sin(a) * 0.62, 0, 0.05 + Math.cos(a) * 0.62);
+    ch.rotation.y = a + Math.PI;
+    g.add(ch);
+  }
+  g.add(box(0.9, 0.5, 0.03, mat(0x111214), 0, 0.55, -D / 2 + 0.04), box(0.86, 0.46, 0.005, glow(0x2b5f86), 0, 0.55, -D / 2 + 0.058)); // its TV
+  return g;
+}
+
+export function receptionDesk() {
+  const g = new THREE.Group();
+  const front = mat(0xd8ba8e), top = mat(0xf4f2ee), dark = mat(0x26272a);
+  g.add(box(1.3, 0.42, 0.42, front, 0, 0.21, 0), box(1.36, 0.035, 0.48, top, 0, 0.44, 0.0));
+  g.add(box(1.3, 0.04, 0.012, mat(0xf39a1e), 0, 0.3, 0.215));                 // an accent line across the front
+  g.add(box(0.26, 0.17, 0.02, dark, -0.3, 0.55, -0.1), box(0.06, 0.06, 0.06, dark, -0.3, 0.47, -0.1));
+  g.add(cyl(0.03, 0.035, 0.02, mat(0xc9a243), 0.35, 0.47, 0.08, 12), ball(0.012, mat(0xc9a243), 0.35, 0.49, 0.08, 8)); // the bell
+  return g;
+}
+
+export function whiteboard() {
+  const g = new THREE.Group();
+  const metal = mat(0x8c9096);
+  for (const x of [-0.45, 0.45]) { g.add(box(0.025, 0.95, 0.025, metal, x, 0.5, 0), box(0.03, 0.02, 0.3, metal, x, 0.03, 0)); }
+  g.add(box(0.95, 0.58, 0.025, mat(0x8c9096), 0, 0.68, 0), box(0.91, 0.54, 0.005, glow(0xfbfbf8), 0, 0.68, 0.015));
+  const ink = [[0xe4572e, -0.2, 0.82, 0.4], [0x2f7fc4, -0.12, 0.74, 0.55], [0x2f7fc4, -0.1, 0.66, 0.6], [0x3f8f45, -0.16, 0.58, 0.45]];
+  for (const [c, x, y, w] of ink) g.add(box(w, 0.012, 0.004, glow(c), x + w / 2 - 0.2, y, 0.02));
+  return g;
+}
+
+export function waterDispenser() {
+  const g = new THREE.Group();
+  g.add(box(0.26, 0.6, 0.26, mat(0xf2f2f0), 0, 0.3, 0), box(0.12, 0.05, 0.02, mat(0x26272a), 0, 0.42, 0.135));
+  const bottle = mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.3, 16), mat(0x7fc4e8, { transparent: true, opacity: 0.6 }), 0, 0.77, 0);
+  g.add(bottle, cyl(0.04, 0.04, 0.05, mat(0x7fc4e8, { transparent: true, opacity: 0.6 }), 0, 0.62, 0, 12));
+  return g;
+}
+
+export function printer() {
+  const g = new THREE.Group();
+  g.add(box(0.5, 0.42, 0.42, mat(0x55575c), 0, 0.21, 0), box(0.46, 0.2, 0.4, mat(0xdcdcd8), 0, 0.52, 0));
+  g.add(box(0.3, 0.012, 0.16, glow(0xffffff), 0, 0.43, 0.24), box(0.1, 0.04, 0.02, glow(0x3f8f45), 0.15, 0.58, 0.205));
+  return g;
+}

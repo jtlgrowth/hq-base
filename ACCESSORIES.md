@@ -142,6 +142,32 @@ Anything not in this list shows a small note at the top of the page naming it, s
 | `trophy` | Crystal award |
 | `teddy-bear` | Teddy bear in a yellow shirt |
 
+### The system on the walls, and bigger rooms (drawn in code)
+
+| id | what it is |
+|---|---|
+| `led-screen` | LED wall screen, live. Pick what it shows with `"show"`: `team` (who is working), `tasks` (the board), `brain` (the rules in brain/rules.md) or `work` (the newest files your team made). Default `team` |
+| `world-map` | World map with pins, on the wall |
+| `meeting-room` | Glass meeting room: round table, four chairs and a TV |
+| `reception-desk` | Reception desk with a monitor and a bell (best at the `entrance` spot) |
+| `whiteboard` | Whiteboard on wheels |
+| `water-dispenser` | Water dispenser |
+| `printer` | Office printer |
+
+Wall pieces (`logo`, `display-shelf`, `led-screen`, `world-map`) line up on the back wall
+by themselves, the logo in the middle; when it is full they continue on the left wall.
+Big pieces (`meeting-table`, `meeting-room`) line up along the lounge and the room grows
+to fit them. Give one a `spot` or `x`/`z` only to put it somewhere else.
+
+```json
+[
+  { "model": "led-screen", "show": "brain" },
+  { "model": "led-screen", "show": "work" },
+  { "model": "meeting-room" },
+  { "model": "reception-desk", "spot": "entrance" }
+]
+```
+
 ## The room itself
 
 Walls, floor and what is outside are set in `company.json` as `look`, not in
@@ -150,10 +176,14 @@ accessories.json. Leave any of them out to keep the default (the first one).
 ```json
 {
   "name": "Sunrise Café",
+  "hq": "The Bakehouse",
   "tagline": "Coffee, pastries and group bookings in Sta. Rosa",
   "look": { "walls": "wood-slat", "floor": "stone", "outside": "island" }
 }
 ```
+
+`hq` is the office's own name, on the top bar and the browser tab. Leave it out and it
+reads "Sunrise Café HQ".
 
 | key | options |
 |---|---|

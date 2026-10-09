@@ -33,7 +33,10 @@ copy the four files from `examples/sunrise-cafe/` over the ones here.
 | `tasks.md` | the board on the right, one `- [ ] task` per line |
 
 Click a name to open that teammate's job card: what /hire wrote about them, whether they
-are wired in (roster.json, the agent file, the job card), and a brief ready to paste.
+are wired in (roster.json, the agent file, the job card, the brain), and a brief ready to
+paste. The panel on the right shows Today (tasks.md), Brain (your `../brain/` files and
+rules) and Work (the newest files your team made). An LED screen on the wall can show any
+of them, live.
 
 The page picks up changes within a few seconds, no restart. Drag to turn the office,
 scroll to zoom. "Pause motion" stops the animation, and it stays off if your system asks
